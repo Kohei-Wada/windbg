@@ -1,5 +1,7 @@
 #include <Windows.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "breakpoint.h"
 
 
@@ -18,6 +20,24 @@ BreakPoints *bps;
 LPVOID       restore = NULL;
 
 
+void get_command();
+
+
+void dump_context(void)
+{
+    printf("-----------------context-----------------\n");
+    printf(" [rip] 0x%I64x\n", context.Rip);
+    printf(" [rcx] 0x%I64x\n", context.Rcx);
+    printf(" [rdx] 0x%I64x\n", context.Rdx);
+    printf(" [r 8] 0x%I64x\n", context.R8);
+    printf(" [r 9] 0x%I64x\n", context.R9);
+    printf(" [rdi] 0x%I64x\n", context.Rdi);
+    printf(" [rsi] 0x%I64x\n", context.Rsi);
+    printf(" [rax] 0x%I64x\n", context.Rax);
+    printf("-----------------------------------------\n");
+}
+
+
 
 DWORD exception_handler_breakpoint(EXCEPTION_DEBUG_INFO *info)
 {
@@ -25,8 +45,10 @@ LPVOID exception_addr = info -> ExceptionRecord.ExceptionAddress;
 BreakPoint *current;
 
     if((current = find_bp(exception_addr, bps)) != NULL){
-        _log("our breakpoint\n");
-        _log("restoring original byte\n");
+        _log("[D B G] our breakpoint\n");
+        _log("[D B G] restoring original byte\n");
+
+        get_command();
 
         if(!WriteProcessMemory(h_process, current -> addr, current -> original_byte, 1, NULL))
             _err("WriteProcessMemory");
@@ -47,11 +69,11 @@ BreakPoint *current;
     }
     else{
         if(!first_break_hit){
-            _log("First Windows Breakpoint\n");
+            _log("[D B G] First Windows Breakpoint\n");
             first_break_hit = 1;
         }
         else{
-            _log("unknown breakpoint detected\n");
+            _log("[D B G] unknown breakpoint detected\n");
         }
     }
 
@@ -76,34 +98,34 @@ DWORD event_handler_exception(DEBUG_EVENT *dbg)
 {
 DWORD   continue_status = DBG_CONTINUE;
 EXCEPTION_DEBUG_INFO info = dbg -> u.Exception;
-    _log("[EVENT] Exception at0x %p\n", info.ExceptionRecord.ExceptionAddress);
 
+    //_log("[EVENT] Exception at 0x %p\n", info.ExceptionRecord.ExceptionAddress);
     //printf("Exception at %p   first-chance = %ld\n",
     //info.ExceptionRecord.ExceptionAddress, info.dwFirstChance);
 
     switch(info.ExceptionRecord.ExceptionCode){
         case EXCEPTION_ACCESS_VIOLATION:
-            _log("    [!] Access violation.\n");
+            _log("[!] Access violation.\n");
             continue_status = DBG_EXCEPTION_NOT_HANDLED;
             break;
 
         case EXCEPTION_BREAKPOINT:
-            _log("    [*] Breakpoint.\n");
+            _log("[*] Breakpoint.\n");
             continue_status = exception_handler_breakpoint(&info);
             break;
 
         case EXCEPTION_GUARD_PAGE:
-            _log("    [!] Guard page.\n");
+            _log("[!] Guard page.\n");
             continue_status = DBG_EXCEPTION_NOT_HANDLED;
             break;
 
         case EXCEPTION_SINGLE_STEP:
-            _log("    [*] Single step.\n");
+            _log("[*] Single step.\n");
             continue_status = exception_handler_single_step(&info);
             break;
 
         default:
-            _log("    [!] not handled exception\n");
+            _log("[!] not handled exception\n");
             continue_status = DBG_EXCEPTION_NOT_HANDLED;
             break;
     }
@@ -264,6 +286,39 @@ DWORD         continue_status = DBG_CONTINUE;
 }
 
 
+void get_command()
+{
+char cmd[50];
+
+    while(1){
+        printf("> ");
+        fgets(cmd, sizeof(cmd), stdin);
+
+        if(strcmp(cmd, "c\n") == 0 || strcmp(cmd, "cont\n") == 0)
+            break;
+
+        else if(strcmp(cmd, "b\n") == 0 || strcmp(cmd, "break\n") == 0){
+            FARPROC addr = func_resolve("msvcrt.dll", "printf");
+            bp_set(addr, bps);
+            break;
+        }
+        else if(strcmp(cmd, "q\n") == 0 || strcmp(cmd, "quit\n") == 0){
+            debugger_active = 0;
+            break;
+        }
+        else if(strcmp(cmd, "i\n") == 0 || strcmp(cmd, "info\n") == 0){
+            dump_context();
+        }
+        else
+            break;
+    }
+}
+
+
+
+
+
+
 int do_debug(DWORD num){
 
     pid = num;
@@ -276,14 +331,13 @@ int do_debug(DWORD num){
     if(DebugActiveProcess(pid) == 0){
         _err("DebugActiveProcess");
     }
-    _log("attach pid = %ld\n", pid);
-
+    _log("[D B G] Attach to pid = %ld\n", pid);
 
     bps = (BreakPoints *)malloc(sizeof(BreakPoints));
     init_bps(bps);
 
-    FARPROC addr = func_resolve("msvcrt.dll", "printf");
-    bp_set(addr, bps);
+
+    get_command();
 
 
     while(debugger_active){
@@ -292,7 +346,7 @@ int do_debug(DWORD num){
     }
 
     DebugActiveProcessStop(pid);
-    _log("Detach from pid = %ld\n", pid);
+    _log("[D B G] Detach from pid = %ld\n", pid);
     free(bps);
 
     return 0;

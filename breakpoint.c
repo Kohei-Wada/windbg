@@ -47,19 +47,22 @@ LPCVOID  address;
 
 BreakPoint *find_bp(LPVOID addr, BreakPoints *bps)
 {
+
 BreakPoint *current = bps -> head;
 
-    while (1) {
-        if(current -> addr == addr)
-            return current;
+    if(current != NULL){
+        while (1) {
+            if(current -> addr == addr)
+                return current;
 
-        else if(current -> next != NULL)
-            current = current -> next;
+            else if(current -> next != NULL)
+                current = current -> next;
 
-        else
-            break;
-
+            else
+                break;
+        }
     }
+
     return NULL;
 }
 
@@ -100,36 +103,43 @@ int bp_del(BreakPoint *bp, BreakPoints *bps)
 
 int bp_set(LPVOID addr, BreakPoints *bps)
 {
+    if(find_bp(addr, bps) == NULL){
+        BreakPoint *bp = (BreakPoint *)malloc(sizeof(BreakPoint));
 
-BreakPoint *bp = (BreakPoint *)malloc(sizeof(BreakPoint));
+        if(!ReadProcessMemory(h_process, addr, bp -> original_byte, 1, NULL)){
+            _err("ReadProcessMemory");
+            free(bp);
+            return 1;
+        }
 
-    if(!ReadProcessMemory(h_process, addr, bp -> original_byte, 1, NULL)){
-        _err("ReadProcessMemory");
-        free(bp);
-        return 1;
+        if(!WriteProcessMemory(h_process, addr, "\xCC", 1, NULL)){
+            _err("WriteProcessMemory");
+            free(bp);
+            return 1;
+        }
+
+        bp -> addr = addr;
+        bp -> next = NULL;
+        bp -> restore = 1;
+
+        if(bps -> head == NULL){
+            bp -> prev  = NULL;
+            bps -> head = bp;
+        }
+        else{
+            bp -> prev = bps -> tail;
+            bps -> tail -> next = bp;
+        }
+
+        bps -> tail = bp;
+
+
+
+        return 0;
     }
 
-    if(!WriteProcessMemory(h_process, addr, "\xCC", 1, NULL)){
-        _err("WriteProcessMemory");
-        free(bp);
-        return 1;
-    }
-
-    bp -> addr = addr;
-    bp -> next = NULL;
-    bp -> restore = 1;
-
-    if(bps -> head == NULL){
-        bp -> prev  = NULL;
-        bps -> head = bp;
-    }
     else{
-        bp -> prev = bps -> tail;
-        bps -> tail -> next = bp;
+        return 1;
     }
-
-    bps -> tail = bp;
-
-    return 0;
 
 }

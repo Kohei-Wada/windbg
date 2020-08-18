@@ -5,6 +5,8 @@
 #include <Windows.h>
 #include "debug.h"
 
+
+
 void _log(char *fmt, ...)
 {
 int log = 1;
@@ -17,6 +19,8 @@ int log = 1;
 }
 
 
+
+
 void _err(char *msg)
 {
 int err = 1;
@@ -24,6 +28,8 @@ int err = 1;
         fprintf(stderr, "error: %s erno = %ld\n", msg, GetLastError());
     }
 }
+
+
 
 
 int get_debug_privileges()
@@ -54,6 +60,8 @@ TOKEN_PRIVILEGES  token_state;
     }
     return 0;
 }
+
+
 
 
 
