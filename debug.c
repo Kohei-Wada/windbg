@@ -23,6 +23,7 @@ LPVOID       restore = NULL;
 void get_command();
 
 
+
 void dump_context(void)
 {
     printf("-----------------context-----------------\n");
@@ -39,6 +40,7 @@ void dump_context(void)
 
 
 
+
 DWORD exception_handler_breakpoint(EXCEPTION_DEBUG_INFO *info)
 {
 LPVOID exception_addr = info -> ExceptionRecord.ExceptionAddress;
@@ -48,10 +50,11 @@ BreakPoint *current;
         _log("[D B G] our breakpoint\n");
         _log("[D B G] restoring original byte\n");
 
-        get_command();
-
         if(!WriteProcessMemory(h_process, current -> addr, current -> original_byte, 1, NULL))
             _err("WriteProcessMemory");
+
+        get_command();
+
 
         context.Rip -= 1;
         context.EFlags = 256;
@@ -221,6 +224,8 @@ DWORD event_handler_rip_event(DEBUG_EVENT *dbg)
 }
 
 
+
+
 int get_debug_event(void)
 {
 DEBUG_EVENT   dbg;
@@ -286,6 +291,7 @@ DWORD         continue_status = DBG_CONTINUE;
 }
 
 
+
 void get_command()
 {
 char cmd[50];
@@ -294,18 +300,27 @@ char cmd[50];
         printf("> ");
         fgets(cmd, sizeof(cmd), stdin);
 
-        if(strcmp(cmd, "c\n") == 0 || strcmp(cmd, "cont\n") == 0)
+        if(strcmp(cmd, "c\n") == 0 || strcmp(cmd, "cont\n") == 0){
+            _log("continue program...\n");
             break;
+        }
 
         else if(strcmp(cmd, "b\n") == 0 || strcmp(cmd, "break\n") == 0){
             FARPROC addr = func_resolve("msvcrt.dll", "printf");
-            bp_set(addr, bps);
+            if(addr != NULL){
+                if(bp_set(addr, bps) == 0)
+                    _log("breakpoint set at %p\n", addr);
+            }
+
             break;
         }
+
         else if(strcmp(cmd, "q\n") == 0 || strcmp(cmd, "quit\n") == 0){
+            _log("quit program\n");
             debugger_active = 0;
             break;
         }
+
         else if(strcmp(cmd, "i\n") == 0 || strcmp(cmd, "info\n") == 0){
             dump_context();
         }

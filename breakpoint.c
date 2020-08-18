@@ -9,6 +9,8 @@ extern int _err(char *msg);
 extern HANDLE h_process;
 
 
+
+
 typedef struct _BreakPoint {
     struct _BreakPoint *prev;
     LPVOID addr;
@@ -18,10 +20,12 @@ typedef struct _BreakPoint {
 }BreakPoint;
 
 
+
 typedef struct _BreakPoints {
     BreakPoint *head;
     BreakPoint *tail;
 }BreakPoints;
+
 
 
 
@@ -103,6 +107,7 @@ int bp_del(BreakPoint *bp, BreakPoints *bps)
 
 int bp_set(LPVOID addr, BreakPoints *bps)
 {
+
     if(find_bp(addr, bps) == NULL){
         BreakPoint *bp = (BreakPoint *)malloc(sizeof(BreakPoint));
 
@@ -132,8 +137,6 @@ int bp_set(LPVOID addr, BreakPoints *bps)
         }
 
         bps -> tail = bp;
-
-
 
         return 0;
     }
